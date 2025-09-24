@@ -1,0 +1,162 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<!DOCTYPE Rule PUBLIC "sailpoint.dtd" "sailpoint.dtd">
+<Rule created="1757426559425" id="c0a8006a992e199481992ec929c1003e" language="beanshell" modified="1758035115577" name="AD Rule Library">
+  <Source>
+  import java.util.List;
+  import java.util.Arrays;
+  import sailpoint.object.Filter;
+  import sailpoint.object.QueryOptions;
+  import sailpoint.tools.GeneralException;
+  import org.apache.log4j.Logger;
+  import java.util.ArrayList;
+  import sailpoint.object.Identity;
+  import sailpoint.object.Link;
+  import sailpoint.object.Filter.MatchMode;
+  import sailpoint.tools.Util;
+  import sailpoint.object.Custom;
+  import sailpoint.object.Attributes;
+  import sailpoint.object.Application;
+  import java.util.Map;
+  import sailpoint.object.CorrelationConfig;
+
+
+  Logger log = Logger.getLogger("com.ADRuleLibrary");
+
+
+  /*This method generates a native identity by constructing a distinguished name (DN) based on the application,
+*identity type (admin or regular), and relevant suffix and destination OU retrieved from a custom object.*/
+
+  public String generateNativeIdentity(Identity identity){
+
+    String destOU = "OU=MyCountry,DC=omkar,DC=com";
+    String suffix = "CN=";
+    String prefix = "";
+
+    return generateDN(identity,destOU,suffix);
+  }
+
+  public String generateDN(Identity identity,String destOU,String suffix){
+
+    String value =null;
+    String appName="Active Directory";
+    String displayName = null;
+    String givenName = identity.getFirstname();
+    givenName = fixSpecialCharacters(givenName);
+    String sn = identity.getLastname();
+    sn = fixSpecialCharacters(sn);
+
+    displayName = givenName + "." +sn;
+
+    value = suffix+ displayName +","+ destOU;
+    int prefix = 1;
+    while(isdistinguishedNameUnique(value,appName)) //method using from rule library.
+    {
+      value = suffix + displayName+prefix +","+ destOU;
+      prefix++;
+    }
+    return value;
+  }
+  // End of omkar code
+  public boolean isdistinguishedNameUnique(String distinguishedName, String appName) throws GeneralException
+  {
+    log.debug("Validating DN -" + distinguishedName);
+    List appList = Arrays.asList(new String[]{appName});
+    Filter appFilter = Filter.in("application.name", appList);
+    Filter nameFilter = Filter.eq("nativeIdentity", distinguishedName);
+
+    QueryOptions qo = new QueryOptions();
+    qo.addFilter(Filter.and(appFilter,nameFilter));
+
+
+    int countOfObjs = context.countObjects(Link.class, qo);
+
+    log.debug("In isdistinguishedNameUnique , distinguishedName: "+distinguishedName+" returned count: "+countOfObjs);
+
+    if(countOfObjs > 0) {
+      log.debug("In isdistinguishedNameUnique Returning true for distinguishedName: "+distinguishedName);
+      return true;
+    }
+    log.debug("In isdistinguishedNameUnique Returning false for distinguishedName: "+distinguishedName);
+    return false;
+  }
+
+
+  public String fixSpecialCharacters(String value){
+
+    if (value == null) {
+      return null;
+    }
+    // Replace all non-alphanumeric characters (anything except a-z, A-Z, 0-9)
+    return value.replaceAll("[^a-zA-Z0-9]", "");
+  }
+
+  public String generatesAMAccountName(String givenName, String sn) {
+    String value = null;
+    String appName="Active Directory";
+    String FirstNameValue = givenName;
+    String LastNameValue = sn;
+    FirstNameValue = fixSpecialCharacters(FirstNameValue);
+    LastNameValue = fixSpecialCharacters(LastNameValue);
+    boolean needTieBreak = true;
+    int tieIteration = 0;
+    int counter = 0;
+    if (FirstNameValue != null &amp;&amp; LastNameValue != null) {
+      FirstNameValue = FirstNameValue.replaceAll("\\W", "");
+      LastNameValue = LastNameValue.replaceAll("\\W", "");
+    }
+    while (needTieBreak) {
+      if (counter == 0) {
+        value = FirstNameValue + "." + LastNameValue;
+      } else if (counter > 0) {
+        value = FirstNameValue + "." + LastNameValue + counter;
+      }
+      // Ensure the value doesn't exceed 20 characters
+      if (Util.isNotNullOrEmpty(value) &amp;&amp; value.length() > 20) {
+        if (counter == 0) {
+          value = FirstNameValue.charAt(0) + "." + LastNameValue;
+        } else if (counter > 0) {
+          value = FirstNameValue.charAt(0) + "." + LastNameValue + counter;
+        }
+        if (value.length() > 20) {
+          if (counter == 0) {
+            value = value.substring(0, 20);
+          } else if (counter > 0) {
+            value = value.substring(0, 19) + counter;
+          }
+        }
+      }
+      if (isSamAccountNameFoundForApp(value, appName)) {
+        counter++;
+      } else {
+        needTieBreak = false;
+      }
+      log.debug("Generated samAccountName: " + value);
+    }
+    return value;
+  }
+  public boolean isSamAccountNameFoundForApp(String samAccountName, String appName) throws GeneralException {
+
+    List appList = Arrays.asList(new String[]{appName});
+
+    Filter appFilter = Filter.in("application.name", appList);
+    Filter nameFilter = Filter.eq("displayName", samAccountName);
+
+    QueryOptions qo = new QueryOptions();
+    qo.addFilter(Filter.and(appFilter,nameFilter));
+
+
+    int countOfObjs = context.countObjects(Link.class, qo);
+
+    log.debug("In isSamAccountNameFoundForApp() , samAccountName:"+samAccountName+" returned count:"+countOfObjs);
+
+    if(countOfObjs > 0) {
+      log.debug("In isSamAccountNameFoundForApp() Returning true for samAccountName:"+samAccountName);
+      return true;
+    }
+    log.debug("In isSamAccountNameFoundForApp() Returning false for samAccountName:"+samAccountName);
+    return false;
+
+  }
+
+  </Source>
+</Rule>
