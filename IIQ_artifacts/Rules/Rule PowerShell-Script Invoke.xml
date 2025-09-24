@@ -1,0 +1,92 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<!DOCTYPE Rule PUBLIC "sailpoint.dtd" "sailpoint.dtd">
+<Rule created="1758119320210" id="c0a8006a995816f681995813da92001b" language="beanshell" modified="1758622911764" name="Rule PowerShell-Script Invoke">
+  <Source>
+
+
+  import sailpoint.object.RpcRequest;
+  import sailpoint.object.RpcResponse;
+  import sailpoint.connector.RPCService;
+  import sailpoint.object.Rule;
+  import sailpoint.object.Application;
+  import sailpoint.object.ProvisioningPlan.AccountRequest;
+  import sailpoint.object.ProvisioningPlan.AttributeRequest;
+  import sailpoint.object.ProvisioningPlan.AccountRequest.Operation;
+  import sailpoint.object.ProvisioningPlan.Operation;
+  import org.apache.commons.logging.Log;
+  import org.apache.commons.logging.LogFactory;
+  import org.apache.log4j.Logger;
+
+
+  /*Map data = new HashMap();
+
+String IQServiceServer = "placeholder";
+int IQServicePort = 5050;
+
+Rule rule = context.getObjectByName(Rule.class, "Rule Test PowerShell");
+  Application application = context.getObjectByName(Application.class, "Active Directory");
+data.put("postScript", rule);
+ data.put("Application", application.getAttributes());
+//data.put("postScript", yourPowershellRuleObject);
+RPCService service = new RPCService(IQServiceServer, IQServicePort, false, false); 
+RpcRequest request = new RpcRequest("ScriptExecutor", "runAfterScript", data);
+RpcResponse response = service.execute(request);
+
+
+
+
+
+  */
+
+  Logger log = Logger.getLogger("com.Mycountry.SampleRule");
+  log.debug("Rule started JML");
+  System.out.println("powershell rule start working for sysout");
+  return "powershell rule start";
+
+  //Log log = LogFactory.getLog("rule.test.powershell");
+
+  Map data = new HashMap();
+
+  String IQServiceServer = "placeholder";
+  int IQServicePort = 5050;
+  Rule rule = context.getObjectByName(Rule.class, "Rule Test PowerShell");
+  data.put("postScript", rule);
+  System.out.println("passed powershell");
+  //log.error("IQService Configuration Values :: " +application.getAttributeValue("IQServiceConfiguration"));
+  Application application = context.getObjectByName(Application.class, "Active Directory");
+  data.put("Application", application.getAttributes());
+
+  //log.error("IQService Configuration Values :: " +application.getAttributeValue("IQServiceConfiguration"));
+
+  RPCService service = new RPCService(IQServiceServer, IQServicePort, false, false);
+  service.setConnectorServices(new sailpoint.connector.DefaultConnectorServices());
+
+  //Fake account request
+  AccountRequest accountRequest = new AccountRequest();
+  accountRequest.setApplication("IIQ");
+  accountRequest.setNativeIdentity("*FAKE*");
+  accountRequest.setOperation(AccountRequest.Operation.Modify);
+
+  // Fake attribute request
+  AttributeRequest fakeAttribute = new AttributeRequest();
+  fakeAttribute.setOperation(Operation.Add);
+  fakeAttribute.setName("param");
+  fakeAttribute.setValue("value");
+  accountRequest.add(fakeAttribute);
+
+  // Add to the IQService params
+  data.put("Request", accountRequest);
+
+  RpcRequest request = new RpcRequest("ScriptExecutor", "runAfterScript", data);
+
+  RpcResponse response = service.execute(request);
+  log.error("Response XML : " +response.toXml()); //Add logger
+  log.error("Response: " + response.toXml());
+
+  Map map = response.getResultAttributes();
+  log.error("Map: " + map);
+
+
+
+  </Source>
+</Rule>
