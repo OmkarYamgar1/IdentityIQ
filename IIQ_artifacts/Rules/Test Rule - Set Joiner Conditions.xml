@@ -1,0 +1,66 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<!DOCTYPE Rule PUBLIC "sailpoint.dtd" "sailpoint.dtd">
+<Rule created="1758274628038" id="0aad9fcd9961198681996155a9c30044" language="beanshell" modified="1758686986054" name="Test Rule - Set Joiner Conditions">
+  <Source>
+  import java.util.List;
+  import java.util.Arrays;
+  import sailpoint.object.Filter;
+  import sailpoint.object.QueryOptions;
+  import sailpoint.tools.GeneralException;
+  import org.apache.log4j.Logger;
+  import java.util.ArrayList;
+  import sailpoint.object.Identity;
+  import sailpoint.object.Link;
+  import sailpoint.object.Filter.MatchMode;
+  import java.util.ArrayList;
+  import java.util.Map;
+  import sailpoint.object.Identity;
+  import sailpoint.tools.Util;
+  import sailpoint.object.Custom;
+  import java.util.Map;
+  import sailpoint.object.Custom;
+  import sailpoint.object.identity;
+  import sailpoint.object.Attributes;
+  import java.util.List;
+  import java.util.Iterator;
+  import sailpoint.api.SailPointContext;
+  import sailpoint.object.Filter;
+  import sailpoint.object.QueryOptions;
+
+
+  import sailpoint.object.Identity;
+  import sailpoint.tools.Util;
+
+  // Provide a list of Identity names which need to be reprocessed through the Joiner lifecycle event
+  // Note: If desired, this could be replaced with QueryOptions/Filter configurations to allow for a dynamic list of users
+  List identityNames = new ArrayList();
+  identityNames.add("Steven.Markle");
+
+  // Loop through the list of Identity names
+  for (String identityName : identityNames) {  
+    // Continue to the next item in the list if the current identityName is NULL or EMPTY
+    if (Util.isNullOrEmpty(identityName)) {
+      continue; 
+    }
+
+    // Query for the Identity
+    Identity identity = context.getObjectByName(Identity.class, identityName);
+
+    // Continue to the next item in the list if the Identity is NULL
+    if (identity == null) {
+      continue; 
+    }
+
+    // Set 'needsCreateProcessing' to boolean true
+    identity.setNeedsCreateProcessing(true, Identity.CreateProcessingStep.Trigger);
+
+    // Save changes to the Identity
+    context.saveObject(identity);
+
+    // Commit the transaction
+    // Note: It could be beneficial to only run this on set intervals if the list of updates is large (for instance, only commit every 50 identities)
+    context.commitTransaction();
+  }
+
+  </Source>
+</Rule>
