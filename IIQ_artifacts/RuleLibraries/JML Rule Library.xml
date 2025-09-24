@@ -1,0 +1,315 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<!DOCTYPE Rule PUBLIC "sailpoint.dtd" "sailpoint.dtd">
+<Rule created="1752567681491" id="c0a80068980d1a8c81980d2c91d20025" language="beanshell" modified="1758644431500" name="JML Rule Library">
+  <Source>
+  import java.text.SimpleDateFormat;
+  import java.time.LocalDateTime;
+  import java.time.format.DateTimeFormatter;
+  import java.time.format.DateTimeParseException;
+  import java.time.temporal.ChronoUnit;
+  import java.util.List;
+  import java.util.ArrayList;
+  import java.util.Calendar;
+  import java.util.Date;
+  import java.util.HashMap;
+  import java.util.Locale;
+  import sailpoint.api.SailPointContext;
+  import sailpoint.api.Terminator;
+  import sailpoint.object.TaskDefinition;
+  import sailpoint.object.TaskResult;
+  import sailpoint.object.Filter;
+  import sailpoint.object.QueryOptions;
+  import sailpoint.tools.GeneralException;
+  import sailpoint.object.Identity;
+  import org.apache.commons.logging.Log;
+  import org.apache.commons.logging.LogFactory;
+  import java.util.List;
+  import org.apache.commons.logging.Log;
+  import org.apache.commons.logging.LogFactory;
+  import org.apache.log4j.Logger;
+  import sailpoint.api.IdentityService;
+  import sailpoint.object.Identity;
+  import sailpoint.object.Link;
+  import sailpoint.object.ProvisioningPlan;
+  import sailpoint.object.ProvisioningProject;
+  import sailpoint.object.ProvisioningPlan.AccountRequest;
+  import sailpoint.api.SailPointContext;
+  import sailpoint.api.Provisioner;
+  import sailpoint.object.Application;
+  import sailpoint.object.EmailOptions;
+  import sailpoint.object.EmailTemplate;
+  import sailpoint.tools.GeneralException;
+  import sailpoint.tools.Util;
+  import sailpoint.object.ProvisioningPlan.AttributeRequest;
+  import sailpoint.object.*;
+  import sailpoint.api.*;
+  import java.util.*;
+  import sailpoint.server.Auditor;
+  import sailpoint.workflow.WorkflowContext;
+
+  Logger log = Logger.getLogger("com.Mycountry.SampleRule");
+  System.out.println("Rule started JML");
+  public ProvisioningPlan buildPlan(String customObjectToBuildPlan, String eventType, String identityName, WorkflowContext wfcontext) throws GeneralException, Exception {
+
+    System.out.println("inside buildplan method");
+    String usertype = null;
+    String department = null;
+    Custom customObj = context.getObjectByName(Custom.class, customObjectToBuildPlan);
+    if (customObjectToBuildPlan != null &amp;&amp; eventType != null &amp;&amp; identityName != null) {
+      System.out.println("custom object is not null");
+
+      if ("JOINER".equalsIgnoreCase(eventType)) {
+        System.out.println("inside joiner event");
+
+        Identity identity = context.getObjectByName(Identity.class, identityName);
+        usertype = (String) identity.getAttribute("isdormant");
+        department = (String) identity.getAttribute("Department");
+        Attributes attr = customObj.getAttributes();
+        if (usertype != null &amp;&amp; department != null) {
+          System.out.println("user department and type is not null "+usertype+"  "+department);
+          if (attr != null &amp;&amp; attr.get(usertype) != null) {
+            System.out.println("Custom obj content is not null ");
+
+            List usrTypeList = (List) attr.get(usertype);
+            System.out.println("usertyoelist = "+usrTypeList);
+            if (usrTypeList == null) {
+              throw new Exception("Expetion in build plan : UsrTypelist is empty");
+            }
+            Map departmentApp = (Map) (usrTypeList.get(0));
+            System.out.println("got the department app");
+            String appsforDepartment = (String) departmentApp.get(department);
+            System.out.println(" apps for department "+ appsforDepartment);
+            List appList = (List) attr.get(appsforDepartment);
+            System.out.println("got the list of apps "+ appList);
+            ProvisioningPlan plan = new ProvisioningPlan();
+            plan.setNativeIdentity(identity.getName());
+            List accountRequests = new ArrayList();
+
+            for (Object appobject : appList) {
+              System.out.println("appobject "+ appobject);
+	
+              String appobj = (String) appobject;
+              AccountRequest accReq = new AccountRequest();
+              accReq.setApplication(appobj);
+              accReq.setOperation(ProvisioningPlan.AccountRequest.Operation.Create);
+              System.out.println("account rquest is generated");
+              accountRequests.add(accReq);
+
+            }
+            plan.setAccountRequests(accountRequests);
+            System.out.println("going for update request");
+            plan = updateAccountRequest(plan, department, customObj);
+            System.out.println("plan is updated");
+           System.out.println(plan.toXml());
+            return plan;
+          }
+        }
+      } else if ("MOVER".equalsIgnoreCase(usertype)) {
+
+      } else if ("LEAVER".equalsIgnoreCase(usertype)) {
+
+      } else if ("REHIRE".equalsIgnoreCase(usertype)) {
+
+      } else if ("CONVERSION".equalsIgnoreCase(usertype)) {
+
+      } else {
+        System.out.println("Event Not found");
+        throw new GeneralException("Event Not found");
+      }
+    }
+    return null;
+  }
+
+  public ProvisioningPlan updateAccountRequest(ProvisioningPlan plan, String dept, Custom customobj) throws GeneralException {
+
+    if (plan != null &amp;&amp; dept != null) {
+
+      Attributes attr = customobj.getAttributes();
+      List adgroups = (List) attr.get("ADGroups");
+      Map adGroupMap = (Map) adgroups.get(0);
+      String groupDN = (String) adGroupMap.get(dept);
+      List AccountRequests = plan.getAccountRequests();
+      if (AccountRequests != null &amp;&amp; AccountRequests.size() > 0) {
+        for (AccountRequest acReq : AccountRequests) {
+          if (AccountRequest.Operation.Create.equals(acReq.getOperation())) {
+            if ("MyCountry-Developer".equalsIgnoreCase(acReq.getApplicationName())) {
+              AttributeRequest attrReq = new AttributeRequest("entitlement", ProvisioningPlan.Operation.Set, "Web-Developer");
+              acReq.add(attrReq);
+
+            }
+            if ("Active Directory".equalsIgnoreCase(acReq.getApplicationName())) {
+
+              AttributeRequest attrReq = new AttributeRequest("memberOf", ProvisioningPlan.Operation.Set, groupDN);
+              acReq.add(attrReq);
+
+            }
+            if ("MyCountry_Finance".equalsIgnoreCase(acReq.getApplicationName())) {
+              AttributeRequest attrReq = new AttributeRequest("entitlement", ProvisioningPlan.Operation.Set, "Finance");
+              acReq.add(attrReq);
+
+            }
+            if ("MyCountry-HR".equalsIgnoreCase(acReq.getApplicationName())) {
+              AttributeRequest attrReq = new AttributeRequest("entitlement", ProvisioningPlan.Operation.Set, "HR");
+              acReq.add(attrReq);
+
+            }
+            if ("MyCountry-Sales".equalsIgnoreCase(acReq.getApplicationName())) {
+              AttributeRequest attrReq = new AttributeRequest("entitlement", ProvisioningPlan.Operation.Set, "Sales");
+              acReq.add(attrReq);
+            }
+          }
+
+        }
+      }
+      return plan;
+    }else{
+      throw new GeneralException("pan or dept is null");
+    }
+  }
+
+  public void addAudit(String action, String target, String attributeName, String attributeValue) throws GeneralException {
+    log.debug("In addAudit() : action:" + action + "; Auditor.isEnabled(action):" + Auditor.isEnabled(action));
+    try{
+    if (Auditor.isEnabled(action)) {
+
+      AuditEvent event = new AuditEvent();
+      event.setTarget(action);
+      event.setTarget(target);
+      event.setTarget(attributeName);
+      event.setTarget(attributeValue);
+      context.startTransaction();
+      context.saveObject(event);
+      context.commitTransaction();
+
+      context.startTransaction();
+      Auditor.log(event);
+
+      context.saveObject(event);
+      context.commitTransaction();
+      log.debug("In addAudit() : commited");
+
+    }
+    }catch(Exception E){
+      System.out.println(" error in addaudit - "+E);
+    }
+
+  }
+
+  public void checkForProvsisioningCompletion(WorkflowContext wfcontext, ProvisioningProject project, String eventType,
+                                              String identityName, String failureNotificaitonTemplate, String failureNotificationRecipients,
+                                              String successNotificaitonTemplate, String successNotificationRecipients, Map emailArgsMap) throws GeneralException {
+
+    List successApp = null;
+    List failedApp = null;
+    try{
+    if (project != null) {
+      List plans = project.getPlans();
+      for (ProvisioningPlan plan : plans) {
+        List AccountRequests = plan.getAccountRequests();
+        if (AccountRequests != null &amp;&amp; AccountRequests.size() > 0) {
+
+          for (AccountRequest acReq : AccountRequests) {
+            ProvisioningResult result = acReq.getResult();
+            if (result == null) {
+              result = plan.getResult();
+              System.out.println(" Result is null ");
+
+            }
+            if (result != null) {
+              System.out.println("In checkForProvsisioningCompletion() : result.getStatus() :" + result.getStatus());
+              if (result.getStatus() != null) {
+                if (result.getStatus().equals(ProvisioningResult.STATUS_COMMITTED.toString())) {
+                  if (successApp == null) {
+                    successApp = new ArrayList();
+                  }
+                  successApp.add(acReq.getApplicationName());
+                  System.out.println("In checkForProvsisioningCompletion() : App Provisioning is successfull :" + acReq.getApplicationName());
+                }
+              } else if (result.getStatus() != null) {
+                if (result.getStatus().equals(ProvisioningResult.STATUS_FAILED.toString())) {
+                  if (failedApp == null) {
+                    failedApp = new ArrayList();
+                  }
+                  failedApp.add(acReq.getApplicationName());
+                  System.out.println("In checkForProvsisioningCompletion() : App Provisioning is failed :" + acReq.getApplicationName());
+                }
+              }
+
+            }
+
+          }
+
+        }
+
+      }
+      
+
+    }
+    if(failedApp != null &amp;&amp; failedApp.size() > 0){
+      addAudit(eventType, identityName, "Status Message", "Failedapps- "+failedApp);
+      Identity id= context.getObjectByName(Identity.class, identityName);
+      Map emailArgs = new HashMap();
+      if(id != null){
+        emailArgs.put("identityName", id.getDisplayName());
+        emailArgs.put("employeeNumber", id.getAttribute("EMP_NO"));
+      }
+      emailArgs.put("eventtype", eventType);
+      emailArgs.put("failedapps", failedApp);
+      emailArgs.put("emailArgsMap", emailArgsMap);
+      System.out.println("Failed apps - "+failedApp);
+      
+			System.out.println("failed apps - "+failedApp);
+      sendEmailNotification(emailArgs, failureNotificaitonTemplate, failureNotificationRecipients, null, true);
+
+    }
+    if(successApp != null &amp;&amp; successApp.size() > 0){
+      addAudit(eventType, identityName, "Status Message", "successApp- "+successApp);
+      Identity id= context.getObjectByName(Identity.class, identityName);
+      Map emailArgs = new HashMap();
+      if(id != null){
+        emailArgs.put("identityName", id.getDisplayName());
+        emailArgs.put("employeeNumber", id.getAttribute("EMP_NO"));
+      }
+      emailArgs.put("eventtype", eventType);
+      emailArgs.put("successApp", successApp);
+      emailArgs.put("emailArgsMap", emailArgsMap);
+      System.out.println("Sucess apps - "+successApp);
+
+      sendEmailNotification(emailArgs, successNotificaitonTemplate, successNotificationRecipients, null, true);
+
+    }
+    wfcontext.setArgument("checkStatusStepExecuted", "true");
+      }catch(Exception E){
+      System.out.println(" error in check provisioning - "+E);
+    }
+  }
+
+  public void sendEmailNotification(Map emailArgs, String templateName, String to, String cc,boolean sendImmediate) throws GeneralException {
+    try{
+    if(templateName != null &amp;&amp; to != null){
+      
+
+      EmailTemplate template = context.getObjectByName(EmailTemplate.class, templateName);
+      EmailOptions ops = new EmailOptions();
+      if(to.contains(","))
+        ops.setTo(Arrays.asList(to.split(",")));
+      else
+        ops.setTo(to);
+
+      ops.addVariables(emailArgs);
+      ops.setSendImmediate(sendImmediate);
+      context.sendEmailNotification(template, ops);
+
+
+    }else{
+
+      log.debug("Email template or email recipient is empty");
+    }
+      }catch(Exception E){
+      System.out.println("error in send email - "+E);
+    }
+
+  } 
+
+  </Source>
+</Rule>
