@@ -1,0 +1,91 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<!DOCTYPE Rule PUBLIC "sailpoint.dtd" "sailpoint.dtd">
+<Rule created="1758119268740" id="c0a8006a995816f6819958131182001a" language="beanshell" name="Powershell-Script" type="ConnectorAfterCreate">
+  <Attributes>
+    <Map>
+      <entry key="ObjectOrientedScript" value="true"/>
+      <entry key="disabled" value="false"/>
+      <entry key="extension" value=".ps1"/>
+      <entry key="program" value="powershell.exe"/>
+      <entry key="timeout" value="120"/>
+    </Map>
+  </Attributes>
+  <Description>
+    This example is for IQService Script.
+  </Description>
+  <Signature returnType="Map">
+    <Inputs>
+      <Argument name="email">
+        <Description>
+          Email address to call powershell script
+        </Description>
+      </Argument>
+    </Inputs>
+    <Returns>
+      <Argument name="response">
+        <Description>
+          Response of the Powershell script.
+        </Description>
+      </Argument>
+    </Returns>
+  </Signature>
+  <Source>
+  /*	$filePath = "C:\AzureADLastSignIn\test.txt"
+
+# Define the content you want to write to the file
+$content = "This is some text that will be written to the text file."
+
+# Write the content to the text file
+$content | Out-File -FilePath $filePath
+
+# If you want to append content to an existing file, use the -Append parameter
+$additionalContent = "This is additional text that will be appended to the file."
+$additionalContent | Out-File -FilePath $filePath -Append
+
+# If you want to ensure the file is encoded in UTF-8, use the -Encoding parameter
+$utf8Content = "This is text with UTF-8 encoding."
+$utf8Content | Out-File -FilePath $filePath -Encoding UTF8 */
+
+  /*$filePath = "C:\AzureADLastSignIn\AzureAD.csv"
+
+  $clientId = ""
+ $clientSecret = ""
+  $tenantId = ""
+
+  # Create a credential object
+  $credential = New-Object System.Management.Automation.PSCredential($clientId, ($clientSecret | ConvertTo-SecureString -AsPlainText -Force))
+
+  # Connect to Azure AD with the application
+ Connect-MgGraph -TenantId $tenantId -Credential $credential -NoWelcome
+Get-MgUser -All -Property 'UserPrincipalName','SignInActivity','Mail','DisplayName' | Select-Object @{N='UserPrincipalName';E={$_.UserPrincipalName}}, 
+@{N='DisplayName';E={$_.DisplayName }}, @{N='LastSignInDate';E={$_.SignInActivity.LastSignInDateTime}} | Export-Csv -Path  $filePath -NoTypeInformation -force
+      */
+
+  # Define the path
+    $folderPath = "C:\AzureADLastSignIn"
+    $filePath = Join-Path $folderPath "AzureAD.csv"
+
+    # Ensure the folder exists
+    if (!(Test-Path -Path $folderPath)) {
+    New-Item -ItemType Directory -Path $folderPath -Force
+  }
+
+  # Sample data to write to CSV
+    $data = @(
+    [PSCustomObject]@{
+      UserPrincipalName = "john.doe@contoso.com"
+        LastSignIn       = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
+    },
+    [PSCustomObject]@{
+      UserPrincipalName = "jane.smith@contoso.com"
+        LastSignIn       = (Get-Date).AddDays(-1).ToString("yyyy-MM-dd HH:mm:ss")
+    }
+  )
+
+    # Write to CSV file
+    $data | Export-Csv -Path $filePath -NoTypeInformation -Encoding UTF8
+
+    Write-Host "Data successfully written to $filePath"
+
+    </Source>
+</Rule>
